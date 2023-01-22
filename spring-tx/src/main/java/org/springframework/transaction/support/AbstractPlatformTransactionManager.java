@@ -347,6 +347,7 @@ public abstract class AbstractPlatformTransactionManager implements PlatformTran
 		Object transaction = doGetTransaction();
 		boolean debugEnabled = logger.isDebugEnabled();
 
+		//事物传播机制的实现
 		if (isExistingTransaction(transaction)) {
 			// Existing transaction found -> check propagation behavior to find out how to behave.
 			return handleExistingTransaction(def, transaction, debugEnabled);
@@ -727,6 +728,13 @@ public abstract class AbstractPlatformTransactionManager implements PlatformTran
 				triggerBeforeCommit(status);
 				triggerBeforeCompletion(status);
 				beforeCompletionInvoked = true;
+
+//				如果是类似于require的传播机制，a事务调用了b事务
+//				b事务实际上并没有开启新的事务，它的status里面的TxObject实际上就是a的TxObject。
+//				所以b切面提交的时候并不需要提交，它没有命中一条这里的if，直接走了出去。
+//				在数据库层面上，这里实际上是只有一个事物
+//				但是在spring代码层面上，这里实际上分成了两个事务，b的事务会影响a的事务的执行
+//				b如果抛错了，那么a的事务就会被tag为只能回滚，如果这里直接commit则会报错
 
 				if (status.hasSavepoint()) {
 					if (status.isDebug()) {
